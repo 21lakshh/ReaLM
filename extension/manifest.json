@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "ReaLM - Misinformation Checker",
+  "version": "1.0.0",
+  "description": "Verify social media posts and detect misinformation with AI-powered fact-checking",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icons/ReaLMlogo.png",
+      "48": "icons/ReaLMlogo.png",
+      "128": "icons/ReaLMlogo.png"
+    }
+  },
+  "icons": {
+    "16": "icons/ReaLMlogo.png",
+    "48": "icons/ReaLMlogo.png",
+    "128": "icons/ReaLMlogo.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
