@@ -18,8 +18,8 @@ app.use('/*', cors({
   allowHeaders: ['Content-Type'],
 }))
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
+app.get('/healthCheck', (c) => {
+  return c.text('Server working perfectly fine!')
 })
 
 app.post('/verify-new', async (c) => {
