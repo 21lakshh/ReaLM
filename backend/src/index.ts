@@ -18,36 +18,36 @@ app.use('/*', cors({
   allowHeaders: ['Content-Type'],
 }))
 
-app.get('/healthCheck', (c) => {
-  return c.text('Server working perfectly fine!')
+app.get('/', (c) => {
+  return c.text('Hello Hono!')
 })
 
 app.post('/verify-new', async (c) => {
-  try {
-    const genai = new GoogleGenAI({
-      apiKey: c.env.GOOGLE_API_KEY,
-    })
-    const client = tavily({ apiKey: c.env.TAVILY_API_KEY })
 
-    const formData = await c.req.formData()
-    const file = formData.get('image')
+  const genai = new GoogleGenAI({
+    apiKey: c.env.GOOGLE_API_KEY,
+  })
+  const client = tavily({ apiKey: c.env.TAVILY_API_KEY })
 
-    if (!file) {
-      return c.json({ error: 'No image uploaded' }, 400)
-    }
+  const formData = await c.req.formData()
+  const file = formData.get('image')
 
-    const arrayBuffer = await file.arrayBuffer()
-    const base64Image = encodeBase64(arrayBuffer);
+  if (!file) {
+    return c.json({ error: 'No image uploaded' }, 400)
+  }
 
-    const contents = [
-      {
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: base64Image,
-        },
+  const arrayBuffer = await file.arrayBuffer()
+  const base64Image = encodeBase64(arrayBuffer);
+
+  const contents = [
+    {
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: base64Image,
       },
-      {
-        text: `
+    },
+    {
+      text: `
     You are an information extraction assistant.
     
     Given an image (such as a social media post or screenshot), do the following:
@@ -63,36 +63,36 @@ app.post('/verify-new', async (c) => {
     
     Make sure the "question" field is specific and self-contained (no references like 'this post' or 'the image').
     Return ONLY the JSON object, nothing else.`
-      }
-    ]
+    }
+  ]
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents,
-    })
+  const response = await genai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents,
+  })
 
-    // Strip markdown code blocks if present
-    const cleanText = (response.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const json = JSON.parse(cleanText)
-    const question = json.question
-    const claim = json.extracted_claim
+  // Strip markdown code blocks if present
+  const cleanText = (response.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  const json = JSON.parse(cleanText)
+  const question = json.question
+  const claim = json.extracted_claim
 
-    const websearchResults = await client.search(question, {
-      includeAnswers: true,
-    })
+  const websearchResults = await client.search(question, {
+    includeAnswers: true,
+  })
 
-    // Format evidence from web search results
-    const evidence = websearchResults.results
-      .map((result, idx) =>
-        `[${idx + 1}] ${result.title}\n${result.content}\nSource: ${result.url}`
-      )
-      .join('\n\n')
+  // Format evidence from web search results
+  const evidence = websearchResults.results
+    .map((result, idx) => 
+      `[${idx + 1}] ${result.title}\n${result.content}\nSource: ${result.url}`
+    )
+    .join('\n\n')
 
-    const finalResponse = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          text: `You are a fact-checking assistant. Your task is to verify claims against evidence from web searches.
+  const finalResponse = await genai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [
+      {
+        text: `You are a fact-checking assistant. Your task is to verify claims against evidence from web searches.
 
 **CLAIM:**
 ${claim}
@@ -117,22 +117,19 @@ ${websearchResults.answer || 'No summary available'}
 }
 
 Return ONLY the JSON object, nothing else.`
-        }
-      ]
-    })
+      }
+    ]
+  })
 
-    // Strip markdown code blocks if present
-    const cleanFinalText = (finalResponse.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const verificationResult = JSON.parse(cleanFinalText)
+  // Strip markdown code blocks if present
+  const cleanFinalText = (finalResponse.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  const verificationResult = JSON.parse(cleanFinalText)
 
-    return c.json({
-      question,
-      claim,
-      validity: verificationResult.validity,
-      response: verificationResult.response
-    })
-  } catch (error) {
-    return c.json({ error: 'Failed to verify image' }, 500)
-  }
+  return c.json({
+    question,
+    claim,
+    validity: verificationResult.validity,
+    response: verificationResult.response
+  })
 })
 export default app
