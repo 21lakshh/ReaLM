@@ -17,6 +17,18 @@ ReaLM helps you verify any claim or information you encounter online. Whether it
 
 ## Demo
 
+### Video Demonstration
+
+Watch the ReaLM extension in action:
+
+<video width="100%" controls>
+  <source src="extension/public/icons/ReaLM-Video-Demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+
+### Screenshots
+
 ![Screenshot 1](extension/public/icons/Screenshot%202025-10-31%20230639.png)
 ![Screenshot 2](extension/public/icons/Screenshot%202025-10-31%20230927.png)
 ![Screenshot 3](extension/public/icons/Screenshot%202025-10-31%20230943.png)
