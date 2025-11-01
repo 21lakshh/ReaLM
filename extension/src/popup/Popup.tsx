@@ -40,29 +40,58 @@ export default function Popup() {
 
   // Background script handles everything - popup just reads from storage
   useEffect(() => {
-    // Load initial state
-    chrome.storage.local.get(['popupState'], (data) => {
-      if (data.popupState) {
-        const state: StoredState = data.popupState
-        setIsLoading(state.isLoading || false)
-        setResult(state.result || null)
-        setError(state.error || null)
-      }
-    })
-
-    // Poll storage for updates while popup is open
-    const interval = setInterval(() => {
+    // Function to update state from storage
+    const updateStateFromStorage = () => {
       chrome.storage.local.get(['popupState'], (data) => {
         if (data.popupState) {
           const state: StoredState = data.popupState
+          
+          // Always update states - force updates to ensure UI reflects storage
           setIsLoading(state.isLoading || false)
-          setResult(state.result || null)
+          
+          // Update result - always check if it changed
+          setResult(prev => {
+            const prevStr = prev ? JSON.stringify(prev) : null
+            const newStr = state.result ? JSON.stringify(state.result) : null
+            if (prevStr !== newStr) {
+              return state.result || null
+            }
+            return prev
+          })
+          
+          // Always update error
           setError(state.error || null)
+        } else {
+          // No state in storage - reset to initial
+          setIsLoading(false)
+          setResult(null)
+          setError(null)
         }
       })
-    }, 500)
+    }
 
-    return () => clearInterval(interval)
+    // Load initial state immediately
+    updateStateFromStorage()
+
+    // Listen for storage changes (more reliable than polling)
+    const storageListener = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'local' && changes.popupState) {
+        // Small delay to ensure storage is fully updated
+        setTimeout(updateStateFromStorage, 50)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(storageListener)
+
+    // Fallback: Poll storage every 300ms (in case listener misses updates)
+    // This is especially important for long-running API calls (30-50 seconds)
+    const interval = setInterval(updateStateFromStorage, 300)
+
+    // Cleanup
+    return () => {
+      chrome.storage.onChanged.removeListener(storageListener)
+      clearInterval(interval)
+    }
   }, [])
 
   const startCapture = async () => {

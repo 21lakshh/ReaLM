@@ -51,20 +51,64 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Process the image and call API in background
     ;(async () => {
       try {
-        chrome.storage.local.set({ popupState: { isLoading: true, result: null, error: null } })
+        // Set loading state immediately
+        await chrome.storage.local.set({ popupState: { isLoading: true, result: null, error: null } })
         
         const blob = dataURLtoBlob(message.imageData)
-        const result = await verifyImage(blob)
         
-        chrome.storage.local.set({ popupState: { isLoading: false, result, error: null } })
+        // Create a timeout promise (60 seconds max)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout: API took too long to respond')), 60000)
+        })
+        
+        // Race between API call and timeout
+        const result = await Promise.race([
+          verifyImage(blob),
+          timeoutPromise
+        ]) as any
+        
+        // Save result immediately
+        await chrome.storage.local.set({ 
+          popupState: { 
+            isLoading: false, 
+            result, 
+            error: null 
+          } 
+        })
+        
+        // Force a storage event by updating again (ensures listener catches it)
+        setTimeout(() => {
+          chrome.storage.local.set({ 
+            popupState: { 
+              isLoading: false, 
+              result, 
+              error: null 
+            } 
+          })
+        }, 100)
+        
       } catch (error) {
-        chrome.storage.local.set({ 
+        const errorMessage = error instanceof Error ? error.message : 'Failed to verify image'
+        
+        // Save error state
+        await chrome.storage.local.set({ 
           popupState: { 
             isLoading: false, 
             result: null, 
-            error: error instanceof Error ? error.message : 'Failed to verify image' 
+            error: errorMessage
           } 
         })
+        
+        // Force update
+        setTimeout(() => {
+          chrome.storage.local.set({ 
+            popupState: { 
+              isLoading: false, 
+              result: null, 
+              error: errorMessage
+            } 
+          })
+        }, 100)
       }
     })()
   }
